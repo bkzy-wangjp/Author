@@ -16,6 +16,7 @@ import (
 	"unsafe"
 
 	"github.com/StackExchange/wmi"
+	//termbox "github.com/nsf/termbox-go"
 )
 
 var (
@@ -24,32 +25,23 @@ var (
 	keySupplementary = []byte("micetl@bkzy.ltd*") //密钥补充码
 )
 
-//func main() {
-//	fmt.Printf("开机时长:%s\n", GetStartTime())
-//	fmt.Printf("当前用户:%s\n", GetUserName())
-//	fmt.Printf("当前系统:%s\n", runtime.GOOS)
-//	fmt.Printf("系统版本:%s\n", GetSystemVersion())
-//	fmt.Printf("BIOS Info:%s\n", GetBiosInfo())
-//	//fmt.Printf("Motherboard:\t%s\n", GetMotherboardInfo())
-
-//	fmt.Printf("CPU:\t%s\n", GetCpuInfo())
-//	fmt.Printf("Memory:\t%s\n", GetMemory())
-//	fmt.Printf("Disk:\t%v\n", GetDiskInfo())
-//	/*---------------------------------------------------*/
-//	mc := MachineCodeEncrypt()
-//	fmt.Println("机器码:", mc)
-//	authCode := AuthorizationCodeEncrypt(128, "bkzywangjunpeng", mc)
-//	fmt.Println("授权码:", authCode)
-//	cnt, username, mcode := AuthorizationCheck(authCode)
-//	fmt.Println("授权解码:", cnt, username, mcode)
-
+//func init() {
+//	if err := termbox.Init(); err != nil {
+//		panic(err)
+//	}
+//	termbox.SetCursor(0, 0)
+//	termbox.HideCursor()
 //}
-//func Authorization(authCode string) bool {
-//	authCnt, uername, ok := AuthorizationCheck(authCode)
-//	if !ok {
-//		mc := MachineCodeEncrypt()
-//		fmt.Println("本机器未授权，请发送机器码到")
-//		fmt.Println("本机机器码:", mc)
+
+//func Pause() {
+//	fmt.Println("请按任意键继续...")
+//	defer termbox.Close()
+//Loop:
+//	for {
+//		switch ev := termbox.PollEvent(); ev.Type {
+//		case termbox.EventKey:
+//			break Loop
+//		}
 //	}
 //}
 
@@ -61,7 +53,7 @@ func AuthorizationCheck(authCode string) (cnt int, username string, ok bool) {
 	cnt, username, mac = AuthorizationCodeDecrypt(Metherboard, authCode) //授权码解码
 	NetInfo := GetIntfs()
 	for _, v := range NetInfo {
-		ok = strings.EqualFold(strings.ToLower(mac), strings.ToLower(strings.Replace(v.MacAddress, ":", "", -1)))
+		ok = strings.EqualFold(strings.ToLower(mac), strings.ToLower(strings.Replace(v.MacAddress, ":", "", -1))) && len(v.MacAddress) >= 12
 		if ok {
 			return cnt, username, ok
 		}
@@ -107,7 +99,12 @@ func AuthorizationCodeDecrypt(keycode, authCode string) (cnt int, username, mcod
 	} else {
 		key = []byte(keycode)[:16]
 	}
-
+	if len(authCode) < 12 {
+		cnt = 0
+		username = ""
+		mcode = authCode
+		return cnt, username, mcode
+	}
 	bytesPass, err := base64.StdEncoding.DecodeString(authCode) //解密
 	if err != nil {
 		cnt = 0
