@@ -114,6 +114,7 @@ func AuthorizationCodeDecrypt(keycode, authCode string) (cnt int, username, mcod
 	}
 	tpass, err := AesDecrypt(bytesPass, key)
 	if err != nil {
+		fmt.Println(err.Error())
 		cnt = 0
 		username = ""
 		mcode = authCode
