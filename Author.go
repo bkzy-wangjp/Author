@@ -25,32 +25,20 @@ var (
 	keySupplementary = []byte("micetl@bkzy.ltd*") //密钥补充码
 )
 
-//func init() {
-//	if err := termbox.Init(); err != nil {
-//		panic(err)
-//	}
-//	termbox.SetCursor(0, 0)
-//	termbox.HideCursor()
-//}
-
-//func Pause() {
-//	fmt.Println("请按任意键继续...")
-//	defer termbox.Close()
-//Loop:
-//	for {
-//		switch ev := termbox.PollEvent(); ev.Type {
-//		case termbox.EventKey:
-//			break Loop
-//		}
-//	}
-//}
-
 /*授权检查*/
 func AuthorizationCheck(authCode string) (cnt int, username string, ok bool) {
 	ok = false
-	Metherboard := GetMotherboardInfo() //主板型号
+
+	dsk := GetDiskInfo() //GetMotherboardInfo() //C盘信息
+	var disk0total string
+	if len(dsk) > 0 {
+		disk0total = fmt.Sprintf("%s%d", dsk[0].Path, dsk[0].Total) //盘符和总空间组成密钥
+	} else {
+		disk0total = string(keySupplementary)
+	}
+
 	var mac string
-	cnt, username, mac = AuthorizationCodeDecrypt(Metherboard, authCode) //授权码解码
+	cnt, username, mac = AuthorizationCodeDecrypt(disk0total, authCode) //授权码解码
 	NetInfo := GetIntfs()
 	for _, v := range NetInfo {
 		ok = strings.EqualFold(strings.ToLower(mac), strings.ToLower(strings.Replace(v.MacAddress, ":", "", -1))) && len(v.MacAddress) >= 12
@@ -149,12 +137,23 @@ func AuthorizationCodeDecrypt(keycode, authCode string) (cnt int, username, mcod
 
 /*机器码编码*/
 func MachineCodeEncrypt() string {
-	mb := GetMotherboardInfo() //主板型号
-	NetInfo := GetIntfs()      //网卡信息
-	mac := NetInfo[0].MacAddress
+	dsk := GetDiskInfo() //GetMotherboardInfo() //C盘信息
+	var disk0total string
+	if len(dsk) > 0 {
+		disk0total = fmt.Sprintf("%s%d", dsk[0].Path, dsk[0].Total) //盘符和总空间组成密钥
+	} else {
+		disk0total = string(keySupplementary)
+	}
+	NetInfo := GetIntfs() //网卡信息
+	var mac string
+	if len(NetInfo) > 0 {
+		mac = NetInfo[0].MacAddress
+	} else {
+		mac = ""
+	}
 
 	var str bytes.Buffer
-	str.WriteString(getReversalStr(mb))
+	str.WriteString(getReversalStr(disk0total))
 	str.WriteString(getReversalStr(strings.Replace(mac, ":", "", -1)))
 	return str.String()
 }
@@ -344,7 +343,8 @@ func GetMotherboardInfo() string {
 	var s = []struct {
 		Product string
 	}{}
-	err := wmi.Query("SELECT  Product  FROM Win32_BaseBoard WHERE (Product IS NOT NULL)", &s)
+
+	err := wmi.Query("SELECT  Product  FROM Win32_BaseBoard", &s) // WHERE (Product IS NOT NULL)
 	if err != nil {
 		return ""
 	}
