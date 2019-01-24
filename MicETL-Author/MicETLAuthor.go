@@ -53,25 +53,27 @@ inputloop:
 		}
 		goto inputloop
 	}
-	mc := Author.MachineCodeEncrypt()
-	key, mac := Author.MachineCodeDecrypt(mcode)
+	key, mac, ok := Author.MachineCodeDecrypt(mcode)
 
-	//
-	fmt.Printf("机器码密钥为%s,硬件串码为:%s\r", key, mac)
-
-	authCode := Author.AuthorizationCodeEncrypt(cnt, username, mcode)
-	fmt.Println("授权码为:", authCode)
-	c, u, mc := Author.AuthorizationCodeDecrypt(key, authCode)
-	fmt.Println("授权解码校验:")
-	fmt.Println("授权数量:", c)
-	fmt.Println("授权用户:", u)
-	fmt.Println("主板型号:", key)
-	fmt.Println("网卡MAC:", mc)
-	ok := SaveAuthMsg(cnt, mcode, key, mac, username, authCode) //存储信息
 	if ok {
-		fmt.Println("授权信息保存成功!")
+		fmt.Printf("机器码密钥为%s,硬件串码为:%s\r", key, mac)
+
+		authCode, _ := Author.AuthorizationCodeEncrypt(cnt, username, mcode)
+		fmt.Println("授权码为:", authCode)
+		c, u, mc, _ := Author.AuthorizationCodeDecrypt(key, authCode)
+		fmt.Println("授权解码校验:")
+		fmt.Println("授权数量:", c)
+		fmt.Println("授权用户:", u)
+		fmt.Println("系统盘信息:", key)
+		fmt.Println("网卡MAC:", mc)
+		ok := SaveAuthMsg(cnt, mcode, key, mac, username, authCode) //存储信息
+		if ok {
+			fmt.Println("授权信息保存成功!")
+		} else {
+			fmt.Println("授权信息保存失败!")
+		}
 	} else {
-		fmt.Println("授权信息保存失败!")
+		fmt.Println("机器码非法,拒绝生成授权码！")
 	}
 	fmt.Println("------------分割线,请继续生成授权码,或者直接关闭----------------")
 	fmt.Println("请依次输入授权数量、用户名和机器码,中间以空格分割,注意大小写敏感:")

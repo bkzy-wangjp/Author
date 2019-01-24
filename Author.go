@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net"
 
-	//"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -16,7 +15,7 @@ import (
 	"unsafe"
 
 	"github.com/StackExchange/wmi"
-	//termbox "github.com/nsf/termbox-go"
+	"github.com/bkzy-wangjp/CRC16"
 )
 
 var (
@@ -38,45 +37,55 @@ func AuthorizationCheck(authCode string) (cnt int, username string, ok bool) {
 	}
 
 	var mac string
-	cnt, username, mac = AuthorizationCodeDecrypt(disk0total, authCode) //授权码解码
-	NetInfo := GetIntfs()
-	for _, v := range NetInfo {
-		ok = strings.EqualFold(strings.ToLower(mac), strings.ToLower(strings.Replace(v.MacAddress, ":", "", -1))) && len(v.MacAddress) >= 12
-		if ok {
-			return cnt, username, ok
+	var checkok bool
+	cnt, username, mac, checkok = AuthorizationCodeDecrypt(disk0total, authCode) //授权码解码
+	ok = checkok
+	if checkok {
+		NetInfo := GetIntfs()
+		for _, v := range NetInfo {
+			ok = strings.EqualFold(strings.ToLower(mac), strings.ToLower(strings.Replace(v.MacAddress, ":", "", -1))) && len(v.MacAddress) >= 12
+			if ok {
+				return cnt, username, ok
+			}
 		}
 	}
 	return cnt, username, ok
 }
 
 /*授权码编码*/
-func AuthorizationCodeEncrypt(cnt int, username, mcode string) string {
-	mb, mac := MachineCodeDecrypt(mcode) //机器码解码
-	var key []byte
-	if len(mb) < 16 {
-		for i := 0; len(mb) < 16; i++ {
-			mb = fmt.Sprintf("%s%c", mb, keySupplementary[i])
+func AuthorizationCodeEncrypt(cnt int, username, mcode string) (string, bool) {
+	mb, mac, ok := MachineCodeDecrypt(mcode) //机器码解码
+	var auth string
+	if ok {
+		var key []byte
+		if len(mb) < 16 {
+			for i := 0; len(mb) < 16; i++ {
+				mb = fmt.Sprintf("%s%c", mb, keySupplementary[i])
+			}
+			key = append(key, []byte(mb)...)
+		} else {
+			key = []byte(mb)[:16]
 		}
-		key = append(key, []byte(mb)...)
+		var code string
+		code = fmt.Sprintf("%02x%02x%d%s%s",
+			len(strconv.Itoa(cnt)),
+			len(username),
+			cnt,
+			username,
+			mac)
+		cc, err := AesEncrypt([]byte(code), key)
+		if err != nil {
+			panic(err)
+		}
+		auth = base64.StdEncoding.EncodeToString(cc)
 	} else {
-		key = []byte(mb)[:16]
+		auth = ""
 	}
-	var code string
-	code = fmt.Sprintf("%02x%02x%d%s%s",
-		len(strconv.Itoa(cnt)),
-		len(username),
-		cnt,
-		username,
-		mac)
-	cc, err := AesEncrypt([]byte(code), key)
-	if err != nil {
-		panic(err)
-	}
-	return base64.StdEncoding.EncodeToString(cc)
+	return crc16.StringAndCrcSum(auth), ok
 }
 
 /*授权码解码*/
-func AuthorizationCodeDecrypt(keycode, authCode string) (cnt int, username, mcode string) {
+func AuthorizationCodeDecrypt(keycode, authCode string) (cnt int, username, mcode string, ok bool) {
 	var key []byte
 	if len(keycode) < 16 { //密钥必需为16位
 		k := keycode
@@ -87,52 +96,62 @@ func AuthorizationCodeDecrypt(keycode, authCode string) (cnt int, username, mcod
 	} else {
 		key = []byte(keycode)[:16]
 	}
-	if len(authCode) < 12 {
-		cnt = 0
-		username = ""
-		mcode = authCode
-		return cnt, username, mcode
-	}
-	bytesPass, err := base64.StdEncoding.DecodeString(authCode) //解密
-	if err != nil {
-		cnt = 0
-		username = ""
-		mcode = authCode
-		return cnt, username, mcode
-	}
-	tpass, err := AesDecrypt(bytesPass, key)
-	if err != nil {
-		fmt.Println(err.Error())
-		cnt = 0
-		username = ""
-		mcode = authCode
-		return cnt, username, mcode
-	}
+	auth, crcok := crc16.StringCheckCRC(authCode) //CRC校验
+	ok = crcok
+	if crcok {
+		if len(auth) < 12 { //长度不能小于12
+			cnt = 0
+			username = ""
+			mcode = auth
+			return cnt, username, mcode, false
+		}
+		bytesPass, err := base64.StdEncoding.DecodeString(auth) //解密
+		if err != nil {
+			cnt = 0
+			username = ""
+			mcode = auth
+			return cnt, username, mcode, false
+		}
+		tpass, err := AesDecrypt(bytesPass, key)
+		if err != nil {
+			fmt.Println(err.Error())
+			cnt = 0
+			username = ""
+			mcode = auth
+			return cnt, username, mcode, false
+		}
 
-	cntl, err := strconv.ParseInt(string(tpass[:2]), 16, 64)
-	if err != nil {
+		cntl, err := strconv.ParseInt(string(tpass[:2]), 16, 64)
+		if err != nil {
+			cnt = 0
+			username = ""
+			mcode = auth
+			return cnt, username, mcode, false
+		}
+		namel, err := strconv.ParseInt(string(tpass[2:4]), 16, 64)
+		if err != nil {
+			cnt = 0
+			username = ""
+			mcode = auth
+			return cnt, username, mcode, false
+		}
+		cnt, err = strconv.Atoi(string(tpass[4 : cntl+4]))
+		if err != nil {
+			cnt = 0
+			username = ""
+			mcode = auth
+			return cnt, username, mcode, false
+		}
+		username = string(tpass[cntl+4 : cntl+namel+4])
+		mcode = string(tpass[cntl+namel+4:])
+	} else {
 		cnt = 0
 		username = ""
-		mcode = authCode
-		return cnt, username, mcode
+		mcode = auth
+		return cnt, username, mcode, false
 	}
-	namel, err := strconv.ParseInt(string(tpass[2:4]), 16, 64)
-	if err != nil {
-		cnt = 0
-		username = ""
-		mcode = authCode
-		return cnt, username, mcode
-	}
-	cnt, err = strconv.Atoi(string(tpass[4 : cntl+4]))
-	if err != nil {
-		cnt = 0
-		username = ""
-		mcode = authCode
-		return cnt, username, mcode
-	}
-	username = string(tpass[cntl+4 : cntl+namel+4])
-	mcode = string(tpass[cntl+namel+4:])
-	return cnt, username, mcode
+	ok = crcok
+	return cnt, username, mcode, ok
 }
 
 /*机器码编码*/
@@ -155,14 +174,22 @@ func MachineCodeEncrypt() string {
 	var str bytes.Buffer
 	str.WriteString(getReversalStr(disk0total))
 	str.WriteString(getReversalStr(strings.Replace(mac, ":", "", -1)))
-	return str.String()
+
+	return crc16.StringAndCrcSum(str.String())
 }
 
 /*机器码解码*/
-func MachineCodeDecrypt(mc string) (key, mac string) {
-	key = string([]byte(mc)[:len(mc)-12]) //获取密钥
-	mac = string([]byte(mc)[len(mc)-12:]) //获取密钥
-	return getReversalStr(key), getReversalStr(mac)
+func MachineCodeDecrypt(mc string) (key, mac string, ok bool) {
+	mcode, crcok := crc16.StringCheckCRC(mc)
+	ok = crcok
+	if crcok {
+		key = string([]byte(mcode)[:len(mcode)-12]) //获取密钥
+		mac = string([]byte(mcode)[len(mcode)-12:]) //获取密钥
+	} else {
+		key = ""
+		mac = ""
+	}
+	return getReversalStr(key), getReversalStr(mac), ok
 }
 
 /*字符串翻转*/
