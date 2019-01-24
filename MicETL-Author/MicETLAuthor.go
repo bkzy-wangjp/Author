@@ -40,7 +40,7 @@ iptpswd:
 
 	thismcode := Author.MachineCodeEncrypt() //本机机器码
 	fmt.Println("本机机器码:", thismcode)
-	fmt.Println("------------开始授权码生成工作---------------")
+	fmt.Println("-----------------------开始授权码生成工作------------------------")
 	fmt.Println("请依次输入授权数量、用户名和机器码,中间以空格分割,注意大小写敏感:")
 inputloop:
 	i, err := fmt.Scanf("%d %s %s", &cnt, &username, &mcode)
@@ -73,7 +73,7 @@ inputloop:
 			fmt.Println("授权信息保存失败!")
 		}
 	} else {
-		fmt.Println("机器码非法,拒绝生成授权码！")
+		fmt.Println("机器码非法,拒绝生成授权码,请重新输入！")
 	}
 	fmt.Println("------------分割线,请继续生成授权码,或者直接关闭----------------")
 	fmt.Println("请依次输入授权数量、用户名和机器码,中间以空格分割,注意大小写敏感:")
