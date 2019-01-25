@@ -27,7 +27,6 @@ var (
 /*授权检查*/
 func AuthorizationCheck(authCode string) (cnt int, username string, ok bool) {
 	ok = false
-
 	dsk := GetDiskInfo() //GetMotherboardInfo() //C盘信息
 	var disk0total string
 	if len(dsk) > 0 {
@@ -97,6 +96,7 @@ func AuthorizationCodeDecrypt(keycode, authCode string) (cnt int, username, mcod
 		key = []byte(keycode)[:16]
 	}
 	auth, crcok := crc16.StringCheckCRC(authCode) //CRC校验
+
 	ok = crcok
 	if crcok {
 		if len(auth) < 12 { //长度不能小于12
@@ -106,6 +106,7 @@ func AuthorizationCodeDecrypt(keycode, authCode string) (cnt int, username, mcod
 			return cnt, username, mcode, false
 		}
 		bytesPass, err := base64.StdEncoding.DecodeString(auth) //解密
+
 		if err != nil {
 			cnt = 0
 			username = ""
@@ -400,7 +401,12 @@ func PKCS5Padding(ciphertext []byte, blockSize int) []byte {
 func PKCS5UnPadding(origData []byte) []byte {
 	length := len(origData)
 	unpadding := int(origData[length-1])
-	return origData[:(length - unpadding)]
+	//限制范围，否则有可能超过length或者小于0
+	m := length - unpadding
+	if m <= 0 || m > length {
+		m = length
+	}
+	return origData[:m]
 }
 
 func AesEncrypt(origData, key []byte) ([]byte, error) {
@@ -422,7 +428,6 @@ func AesDecrypt(crypted, key []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	blockSize := block.BlockSize()
 	blockMode := cipher.NewCBCDecrypter(block, key[:blockSize])
 	origData := make([]byte, len(crypted))
