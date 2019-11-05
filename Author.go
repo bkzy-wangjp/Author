@@ -376,7 +376,11 @@ func GetMotherboardInfo() string {
 	if err != nil {
 		return ""
 	}
-	return s[0].Product
+	str := ""
+	if len(s) > 0 {
+		str = s[0].Product
+	}
+	return str
 }
 
 //BIOS信息
@@ -388,7 +392,11 @@ func GetBiosInfo() string {
 	if err != nil {
 		return ""
 	}
-	return s[0].Name
+	str := ""
+	if len(s) > 0 {
+		str = s[0].Name
+	}
+	return str
 }
 
 /*加密解密算法*/
