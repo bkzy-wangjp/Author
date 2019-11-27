@@ -37,7 +37,6 @@ iptpswd:
 		}
 		goto iptpswd
 	}
-
 	thismcode := Author.MachineCodeEncrypt() //本机机器码
 	fmt.Println("本机机器码:", thismcode)
 	fmt.Println("-----------------------开始授权码生成工作------------------------")
@@ -87,7 +86,7 @@ func SaveAuthMsg(cnt int, mcode, key, mac, username, authCode string) bool {
 		"Etl2bkzy",
 		"rm-2zehm037lnj7rl64wo.mysql.rds.aliyuncs.com",
 		"3306",
-		"micetlauth")
+		"bkzy_auth")
 	db, err := sql.Open("mysql", srcDbMsg)
 	if err != nil {
 		fmt.Println("打开数据失败", err.Error)
@@ -97,11 +96,11 @@ func SaveAuthMsg(cnt int, mcode, key, mac, username, authCode string) bool {
 	//Begin函数内部会去获取连接
 	tx, _ := db.Begin()
 	sqlInsert := fmt.Sprintf("INSERT INTO %s(%s,%s,%s,%s,%s,%s,%s) VALUES('%s','%s','%s','%s','%s',%d,'%s')",
-		"etlauthorization",
+		"micetl",
 		"DataTime",
 		"MachineCode",
 		"AuthCode",
-		"Motherboard",
+		"SysDiskInfo",
 		"NetMac",
 		"AuthNumber",
 		"UserName",

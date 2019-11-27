@@ -1,5 +1,5 @@
 // GetHardInfo
-package hardinfo
+package Hardinfo
 
 import (
 	"fmt"
