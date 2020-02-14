@@ -24,7 +24,10 @@ func PrintHardInfo() {
 	fmt.Println("Bios信息:", GetBiosInfo())
 	fmt.Println("CPU信息:", GetCpuInfo())
 	fmt.Println("硬盘信息:", GetDiskInfo())
-	fmt.Println("网卡信息:", GetIntfs())
+	fmt.Println("网卡信息:")
+	for _, net := range GetIntfs() {
+		fmt.Println(net)
+	}
 	fmt.Println("内存信息:", GetMemory())
 	fmt.Println("开机时间信息:", GetStartTime())
 	fmt.Println("系统版本信息:", GetSystemVersion())
