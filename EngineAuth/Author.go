@@ -71,7 +71,7 @@ func AuthorizationCodeEncrypt(p_cnt, s_cnt int, username, mcode string) (string,
 时间：2019年11月27日
 作者：wang_jp
 */
-func AuthorizationCheck(authCode string) (p_cnt, s_cnt int, username string, ok bool) {
+func AuthorizationCheck(authCode string) (p_cnt, s_cnt, r_cnt int, username string, ok bool) {
 	ok = false
 	dsk := hard.GetDiskInfo() //C盘信息
 	var disk0total string
@@ -84,17 +84,21 @@ func AuthorizationCheck(authCode string) (p_cnt, s_cnt int, username string, ok 
 	var mac string
 	var checkok bool
 	p_cnt, s_cnt, username, mac, checkok = AuthorizationCodeDecrypt(disk0total, authCode) //授权码解码
+	r_cnt = s_cnt / 100
+	if r_cnt < 50 {
+		r_cnt = 50
+	}
 	ok = checkok
-	if checkok {
+	if checkok { //授权码解码成功
 		NetInfo := hard.GetIntfs()
 		for _, v := range NetInfo {
 			ok = strings.EqualFold(strings.ToLower(mac), strings.ToLower(strings.Replace(v.MacAddress, ":", "", -1))) && len(v.MacAddress) >= 12
 			if ok {
-				return p_cnt, s_cnt, username, ok
+				return p_cnt, s_cnt, r_cnt, username, ok
 			}
 		}
 	}
-	return p_cnt, s_cnt, username, ok
+	return p_cnt, s_cnt, r_cnt, username, ok
 }
 
 /*
